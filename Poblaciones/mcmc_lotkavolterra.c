@@ -7,7 +7,7 @@
 
 
 double likelihood(double *y_obs, double* y_model);
-void my_model(double *y_init, double *x_obs, double a, double b, double c, double d);
+void my_model(double *y_init, double *x_obs, double a, double b, double c, double d, double *tim);
 int minimo (double *arr, int nsteps, int nburn);
 double std_dev(double *arr, int n_steps, int n_burn);
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv){
   double *l_walk;
   double *y_init;
   double *y_prime;
-  double *time;
+  double *tim;
   FILE *in;
   double var0;
   double var1;
@@ -39,7 +39,7 @@ int main(int argc, char **argv){
 
   x_obs  = malloc(npoints * sizeof(double));
   y_obs  = malloc(npoints * sizeof(double));
-  time = malloc(npoints * sizeof(double));
+  tim = malloc(npoints * sizeof(double));
   a_walk = malloc(npoints * sizeof(double));
   b_walk = malloc(npoints * sizeof(double));
   c_walk = malloc(npoints * sizeof(double));
@@ -55,12 +55,12 @@ int main(int argc, char **argv){
   }
   
   int i;
-  for(i=0;i<4141;i++){
+  for(i=0;i<288;i++){
     fscanf(in,"%lf %lf %lf\n", &var0, &var1, &var2);
     
       x_obs[i] = var1;
       y_obs[i] = var2;
-      time[i] = var0;
+      tim[i] = var0;
       
    
       
@@ -101,7 +101,7 @@ int main(int argc, char **argv){
   d_walk[0]=((double)rand() / (double) (RAND_MAX/50.0));
   
   // printf("%f %f %f %f\n",a_walk[0], b_walk[0], c_walk[0], d_walk[0]);
-  my_model (y_init, x_obs, a_walk[0], b_walk[0], c_walk[0], d_walk[0]);
+  my_model (y_init, x_obs, a_walk[0], b_walk[0], c_walk[0], d_walk[0],tim);
   l_walk[0] = likelihood(y_obs, y_init);
   // printf("%f\n",l_walk[0]);
   
@@ -133,8 +133,8 @@ int main(int argc, char **argv){
     
     // printf("%f %f %f %f\n",a_walk[j], b_walk[j], c_walk[j], d_walk[j]);
 
-    my_model(y_init, x_obs, a_walk[j], b_walk[j], c_walk[j], d_walk[j]);
-    my_model(y_prime, x_obs, a_prime, b_prime, c_prime, d_prime);
+    my_model(y_init, x_obs, a_walk[j], b_walk[j], c_walk[j], d_walk[j],tim);
+    my_model(y_prime, x_obs, a_prime, b_prime, c_prime, d_prime, tim);
 
     l_prime = likelihood(y_obs, y_prime);
     l_init = likelihood(y_obs, y_init);
@@ -186,7 +186,7 @@ int main(int argc, char **argv){
   double *c_burned;
   double *d_burned;
   double *l_burned;
-  double *x_burned;
+  
 
   a_burned = malloc(npoints * sizeof(double));
   b_burned = malloc(npoints * sizeof(double));
@@ -264,10 +264,54 @@ double likelihood(double *y_obs, double* y_model){
   return (1.0/2.0)*chi_squared;
 }
 
-void my_model(double *y_init, double *x_obs, double a, double b, double c, double d){
+void my_model(double *y_init, double *x_obs, double a, double b, double c, double d,double *tim){
+  int i;
   
-  //aca va runge kutta orden 4
-  }
+		    
+  for (i=1; i<288; i++){
+    double k_1_prime1 = x_obs[i-1]*(a-b*y_init[i-1]);
+    double k_1_prime2 = -y_init[i-1]*(c-d*x_obs[i-1]);
+    
+    double h = tim[i]-tim[i-1];
+    
+    //first step
+    
+    double x_1 = x_obs[i-1] + (h/2.0) * k_1_prime1;
+    double y_1 = y_init[i-1] + (h/2.0) * k_1_prime2;
+    
+    double k_2_prime1 = x_1*(a-b*y_1);
+    double k_2_prime2 = -y_1*(c-d*x_1);
+    
+    
+    //second step
+    
+    double x_2 = x_obs[i-1] + (h/2.0) * k_2_prime1;
+    double y_2 = y_init[i-1] + (h/2.0) * k_2_prime2;
+    
+    double k_3_prime1 = x_2*(a-b*y_2);
+    double k_3_prime2 = -y_2*(c-d*x_2);
+    
+    
+    
+    //third step
+   
+    double x_3 = x_obs[i-1] + h * k_3_prime1;
+    double y_3 = y_init[i-1] + h * k_3_prime2;
+   
+    double k_4_prime1 = x_3*(a-b*y_3);
+    double k_4_prime2 = -y_3*(c-d*x_3);
+    
+    
+    //fourth step
+    double average_k_1 = (1.0/6.0)*(k_1_prime1 + 2.0*k_2_prime1 + 2.0*k_3_prime1 + k_4_prime1);
+    double average_k_2 = (1.0/6.0)*(k_1_prime2 + 2.0*k_2_prime2 + 2.0*k_3_prime2 + k_4_prime2);
+    
+    
+    
+     x_obs[i] = x_obs[i-1] + h * average_k_1;
+     y_init[i] = y_init[i-1] + h * average_k_2;
+  }  
+				  
 }
 
 int minimo (double *arr, int nsteps, int nburn){
